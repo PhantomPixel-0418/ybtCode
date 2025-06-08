@@ -1,41 +1,49 @@
 name: Auto-Label
-
 on:
   issues:
-    types: [opened, edited]  # 监听issue的创建和编辑事件
+    types: [opened, edited, closed]  # 添加closed事件以捕获关闭操作
+    reopen: true  # 可选：如果希望重新打开issue时也触发
 
 jobs:
   auto-label:
     runs-on: ubuntu-latest
     steps:
-      - name: Check if issue body contains keywords
-        id: check_keywords
+      - name: Auto-label based on content and status
+        id: auto_label
         uses: actions/github-script@v6
         with:
           script: |
-            const body = context.payload.issue.body.toLowerCase();
-            const keywords = {
-              complete: ["done", "fixed"],
-              wontfix: ["not plan"],
-              duplicate: ["duplicate"]
-            };
+            const issue = context.payload.issue;
+            const body = (issue.body || "").toLowerCase();
+            const closingReason = issue.state_reason || "";
             
-            let labelsToAdd = [];
-            if (keywords.complete.some(kw => body.includes(kw))) {
-              labelsToAdd.push("✅ Complete");
-            }
-            if (keywords.wontfix.some(kw => body.includes(kw))) {
-              labelsToAdd.push("❌ wontfix");
-            }
-            if (keywords.duplicate.some(kw => body.includes(kw))) {
-              labelsToAdd.push("❌ duplicate");
+            // 定义关键词与标签映射
+            const keywordMap = [
+              { keywords: ["done", "fixed"], label: "✅ Complete" },
+              { keywords: ["not plan", "not planned", "no plan", "wontfix"], label: "❌ wontfix" },
+              { keywords: ["duplicate", "duplicated", "dupe", "duplicate issue"], label: "❌ duplicate" }
+            ];
+            
+            let labelsToAdd = new Set();
+            
+            // 检查关闭原因 (GitHub API返回的是"not_planned"而不是"not planned")
+            if (closingReason.toLowerCase() === "not_planned") {
+              labelsToAdd.add("❌ wontfix");
             }
             
-            return labelsToAdd.length > 0 ? labelsToAdd.join(',') : '';
+            // 检查正文中的关键词
+            keywordMap.forEach(({ keywords, label }) => {
+              if (keywords.some(kw => body.includes(kw))) {
+                labelsToAdd.add(label);
+              }
+            });
+            
+            // 返回逗号分隔的标签列表
+            return Array.from(labelsToAdd).join(',');
           result-encoding: string
 
       - name: Apply labels
-        if: steps.check_keywords.outputs.result != ''
-        uses: actions/labeler@v4
+        if: steps.auto_label.outputs.result != ''
+        uses: actions-ecosystem/action-add-labels@v1
         with:
-          add-labels: ${{ steps.check_keywords.outputs.result }}
+          labels: ${{ steps.auto_label.outputs.result }}
