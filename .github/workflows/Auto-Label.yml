@@ -1,0 +1,22 @@
+name: Auto-Label
+
+on:
+  issues:
+    types: [closed]
+
+jobs:
+  tagging:
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    steps:
+      - name: Apply closed labels
+        uses: actions/github-script@v6
+        with:
+          script: |
+            github.rest.issues.addLabels({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.issue.number,
+              labels: ['✅ Complete']
+            })
