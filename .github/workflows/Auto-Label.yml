@@ -1,8 +1,7 @@
 name: Auto-Label
 on:
   issues:
-    types: [opened, edited, closed]  # 添加closed事件以捕获关闭操作
-    reopen: true  # 可选：如果希望重新打开issue时也触发
+    types: [opened, edited, closed] 
 
 jobs:
   auto-label:
@@ -17,33 +16,49 @@ jobs:
             const body = (issue.body || "").toLowerCase();
             const closingReason = issue.state_reason || "";
             
-            // 定义关键词与标签映射
             const keywordMap = [
-              { keywords: ["done", "fixed"], label: "✅ Complete" },
-              { keywords: ["not plan", "not planned", "no plan", "wontfix"], label: "❌ wontfix" },
-              { keywords: ["duplicate", "duplicated", "dupe", "duplicate issue"], label: "❌ duplicate" }
+              { keywords: ["\\bdone\\b", "\\bfixed\\b"], label: "✅ Complete" },  // 使用单词边界
+              { keywords: ["\\bnot\\s+plan", "\\bwont\\s?fix\\b", "no\\s+plan"], label: "❌ wontfix" },
+              { 
+                keywords: [
+                  "\\bduplicate\\b",     // 完整单词
+                  "\\bdupe\\b",          // 常见缩写
+                  "\\bdup\\b",           // 极简缩写
+                  "already reported"     // 同义表述
+                ], 
+                label: "❌ duplicate" 
+              }
             ];
             
             let labelsToAdd = new Set();
             
-            // 检查关闭原因 (GitHub API返回的是"not_planned"而不是"not planned")
+            // 处理 GitHub 关闭原因
             if (closingReason.toLowerCase() === "not_planned") {
               labelsToAdd.add("❌ wontfix");
             }
             
-            // 检查正文中的关键词
+            // 检测正文关键词（使用正则匹配）
             keywordMap.forEach(({ keywords, label }) => {
-              if (keywords.some(kw => body.includes(kw))) {
+              const regexes = keywords.map(kw => new RegExp(kw, "i"));  // 创建正则表达式数组
+              if (regexes.some(regex => regex.test(body))) {
                 labelsToAdd.add(label);
               }
             });
             
-            // 返回逗号分隔的标签列表
+            console.log(`Detected labels: ${Array.from(labelsToAdd).join(', ')}`);
             return Array.from(labelsToAdd).join(',');
           result-encoding: string
 
       - name: Apply labels
         if: steps.auto_label.outputs.result != ''
-        uses: actions-ecosystem/action-add-labels@v1
+        uses: actions/github-script@v6
         with:
-          labels: ${{ steps.auto_label.outputs.result }}
+          script: |
+            const labels = '${{ steps.auto_label.outputs.result }}'.split(',');
+            await github.rest.issues.addLabels({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              labels: labels
+            });
+            console.log(`Added labels: ${labels.join(', ')}`);
