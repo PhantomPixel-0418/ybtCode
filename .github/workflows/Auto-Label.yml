@@ -2,21 +2,40 @@ name: Auto-Label
 
 on:
   issues:
-    types: [closed]
+    types: [opened, edited]  # 监听issue的创建和编辑事件
 
 jobs:
-  tagging:
+  auto-label:
     runs-on: ubuntu-latest
-    permissions:
-      issues: write
     steps:
-      - name: Apply closed labels
+      - name: Check if issue body contains keywords
+        id: check_keywords
         uses: actions/github-script@v6
         with:
           script: |
-            github.rest.issues.addLabels({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.payload.issue.number,
-              labels: ['✅ Complete']
-            })
+            const body = context.payload.issue.body.toLowerCase();
+            const keywords = {
+              complete: ["done", "fixed"],
+              wontfix: ["not plan"],
+              duplicate: ["duplicate"]
+            };
+            
+            let labelsToAdd = [];
+            if (keywords.complete.some(kw => body.includes(kw))) {
+              labelsToAdd.push("✅ Complete");
+            }
+            if (keywords.wontfix.some(kw => body.includes(kw))) {
+              labelsToAdd.push("❌ wontfix");
+            }
+            if (keywords.duplicate.some(kw => body.includes(kw))) {
+              labelsToAdd.push("❌ duplicate");
+            }
+            
+            return labelsToAdd.length > 0 ? labelsToAdd.join(',') : '';
+          result-encoding: string
+
+      - name: Apply labels
+        if: steps.check_keywords.outputs.result != ''
+        uses: actions/labeler@v4
+        with:
+          add-labels: ${{ steps.check_keywords.outputs.result }}
