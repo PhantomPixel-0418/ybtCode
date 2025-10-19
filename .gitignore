@@ -1,0 +1,79 @@
+# .gitignore - 为 ybtCode 仓库提供常见的忽略规则
+# 将 IDE 配置、编译产物、临时文件和操作系统文件排除在版本控制之外
+
+# Visual Studio Code
+.vscode/
+
+# JetBrains IDEs
+.idea/
+
+# Build artifacts
+build/
+bin/
+obj/
+out/
+*/output/
+
+# Compiled object files, executables, libraries
+*.o
+*.obj
+*.exe
+*.out
+*.app
+*.dll
+*.so
+*.a
+*.lib
+
+# Precompiled headers
+*.gch
+
+# Logs and databases
+*.log
+*.sql
+*.sqlite
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*~
+# swap files
+*.swp
+
+# Coverage and test artifacts
+coverage/
+coverage.*
+
+# Misc
+*.tmp
+*.bak
+*.backup
+
+# User-specific files
+*.suo
+*.user
+*.userprefs
+
+# CMake
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+Makefile
+
+# VS/Visual Studio
+*.vcxproj*
+*.sln
+
+# Packaged releases
+*.zip
+*.tar.gz
+*.7z
+
+# Node / Python env (if ever present)
+node_modules/
+venv/
+__pycache__/
+
+# End of file
